@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/renpy-sdk
-          key: renpy-sdk-android-${{ env.RENPY_VERSION }}
+          key: renpy-sdk-android-v2-${{ env.RENPY_VERSION }}
 
       - name: Download Ren'Py SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -50,10 +50,16 @@ jobs:
           mkdir -p ~/renpy-sdk
           tar -xjf sdk.tar.bz2 -C ~/renpy-sdk --strip-components=1
 
-      - name: Install Android SDK (RAPT)
+      - name: Download RAPT and install Android SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
-          cd "$HOME/renpy-sdk/rapt"
+          curl -fsSL "https://www.renpy.org/dl/${RENPY_VERSION}/renpy-${RENPY_VERSION}-rapt.zip" -o rapt.zip
+          unzip -q rapt.zip -d rapt-tmp
+          # zip may contain a top-level "rapt" folder or the files directly
+          if [ -d rapt-tmp/rapt ]; then mv rapt-tmp/rapt ~/renpy-sdk/rapt; else mv rapt-tmp ~/renpy-sdk/rapt; fi
+          cd ~/renpy-sdk/rapt
+          ls
+          test -f android.py
           yes | python3 android.py installsdk
 
       - name: Configure Android project
