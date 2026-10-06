@@ -1,0 +1,32 @@
+name: Build Ren'Py Game
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Ren'Py
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Ren'Py project
+        uses: ProjectAliceDev/renpy-build-action@v1
+        with:
+          project-dir: .
+          renpy-version: "8.4.1"
+          build-dir: builds
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: renpy-build
+          path: builds/
+          if-no-files-found: error
