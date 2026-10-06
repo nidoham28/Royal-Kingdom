@@ -3,22 +3,15 @@ name: Build Ren'Py Game
 on:
   push:
     branches: [main, master]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".gitignore"
+    paths-ignore: ["**.md", "docs/**", ".gitignore"]
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
-# Cancel outdated runs on the same branch/PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Least-privilege token
 permissions:
   contents: read
 
@@ -35,15 +28,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
           persist-credentials: false
 
-      - name: Build Ren'Py project
-        uses: ProjectAliceDev/renpy-build-action@v1
+      - name: Cache Ren'Py SDK
+        id: sdk-cache
+        uses: actions/cache@v4
         with:
-          project-dir: .
-          renpy-version: ${{ env.RENPY_VERSION }}
-          build-dir: builds
+          path: ~/renpy-sdk
+          key: renpy-sdk-${{ env.RENPY_VERSION }}
+
+      - name: Download Ren'Py SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://www.renpy.org/dl/${RENPY_VERSION}/renpy-${RENPY_VERSION}-sdk.tar.bz2" -o sdk.tar.bz2
+          mkdir -p ~/renpy-sdk
+          tar -xjf sdk.tar.bz2 -C ~/renpy-sdk --strip-components=1
+
+      - name: Build distributions
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          ~/renpy-sdk/renpy.sh launcher distribute "$GITHUB_WORKSPACE" --destination "$GITHUB_WORKSPACE/builds"
 
       - name: Upload build
         uses: actions/upload-artifact@v4
@@ -52,4 +58,4 @@ jobs:
           path: builds/
           if-no-files-found: error
           retention-days: 7
-          compression-level: 0  # game archives are already compressed
+          compression-level: 0
