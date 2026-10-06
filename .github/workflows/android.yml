@@ -84,19 +84,32 @@ jobs:
         run: |
           yes "" | "$HOME/rapt.sh" configure "$GITHUB_WORKSPACE" || true
 
+      - name: Generate throwaway signing keys (if repo has none)
+        run: |
+          for ks in android bundle; do
+            if [ ! -f "$ks.keystore" ]; then
+              keytool -genkey -keystore "$ks.keystore" -alias "$ks" -keyalg RSA -keysize 2048 \
+                -keypass android -storepass android -validity 20000 \
+                -dname "CN=Royal Kingdom, O=Dev, C=US"
+            fi
+          done
+
       - name: Build APK
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: |
-          "$HOME/renpy-sdk/renpy.sh" "$HOME/renpy-sdk/launcher" android_build "$GITHUB_WORKSPACE" assembleDebug
+          mkdir -p builds
+          "$HOME/renpy-sdk/renpy.sh" "$HOME/renpy-sdk/launcher" android_build "$GITHUB_WORKSPACE" --destination "$GITHUB_WORKSPACE/builds"
 
       - name: Collect build output
         run: |
           mkdir -p builds
-          find "$HOME/renpy-sdk/rapt" "$GITHUB_WORKSPACE/.." -maxdepth 4 \
-            \( -name "*.apk" -o -name "*.aab" \) \
-            -exec cp -v {} builds/ \; 2>/dev/null || true
+          if ! ls builds/*.apk builds/*.aab >/dev/null 2>&1; then
+            find "$HOME/renpy-sdk/rapt" "$GITHUB_WORKSPACE/.." -maxdepth 5 \
+              \( -name "*.apk" -o -name "*.aab" \) -not -path "*/builds/*" \
+              -exec cp -v {} builds/ \; 2>/dev/null || true
+          fi
           ls -la builds/
 
       - name: Upload build
