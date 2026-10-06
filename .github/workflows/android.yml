@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/renpy-sdk
-          key: renpy-sdk-android-v3-${{ env.RENPY_VERSION }}
+          key: renpy-sdk-android-v4-${{ env.RENPY_VERSION }}
 
       - name: Download Ren'Py SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -49,6 +49,24 @@ jobs:
           curl -fsSL "https://www.renpy.org/dl/${RENPY_VERSION}/renpy-${RENPY_VERSION}-sdk.tar.bz2" -o sdk.tar.bz2
           mkdir -p ~/renpy-sdk
           tar -xjf sdk.tar.bz2 -C ~/renpy-sdk --strip-components=1
+
+      - name: Create RAPT helper
+        run: |
+          cat > "$HOME/rapt.sh" << 'SCRIPT'
+          #!/usr/bin/env bash
+          # Runs rapt/android.py with Ren'Py's bundled Python and the renpy package on sys.path
+          set -e
+          SDK="$HOME/renpy-sdk"
+          PY=$(find "$SDK/lib" -maxdepth 2 -type f \( -name python -o -name python3 \) -path "*py3-linux-x86_64*" | head -n1)
+          cd "$SDK/rapt"
+          exec "$PY" -c "
+          import sys, runpy
+          sys.path.insert(0, '$SDK')
+          sys.argv = ['android.py'] + sys.argv[1:]
+          runpy.run_path('android.py', run_name='__main__')
+          " "$@"
+          SCRIPT
+          chmod +x "$HOME/rapt.sh"
 
       - name: Download RAPT and install Android SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -60,19 +78,11 @@ jobs:
           cd ~/renpy-sdk/rapt
           ls
           test -f android.py
-          SDK="$HOME/renpy-sdk"
-          PY=$(find "$SDK/lib" -maxdepth 2 -type f \( -name python -o -name python3 \) -path "*py3-linux-x86_64*" | head -n1)
-          export PYTHONPATH="$SDK:$(find "$SDK/lib" -maxdepth 1 -type d | tr '\n' ':')"
-          echo "Using $PY"
-          yes | "$PY" android.py installsdk
+          yes | "$HOME/rapt.sh" installsdk
 
       - name: Configure Android project
         run: |
-          SDK="$HOME/renpy-sdk"
-          PY=$(find "$SDK/lib" -maxdepth 2 -type f \( -name python -o -name python3 \) -path "*py3-linux-x86_64*" | head -n1)
-          export PYTHONPATH="$SDK:$(find "$SDK/lib" -maxdepth 1 -type d | tr '\n' ':')"
-          cd "$SDK/rapt"
-          yes "" | "$PY" android.py configure "$GITHUB_WORKSPACE" || true
+          yes "" | "$HOME/rapt.sh" configure "$GITHUB_WORKSPACE" || true
 
       - name: Build APK
         env:
