@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/renpy-sdk
-          key: renpy-sdk-android-v2-${{ env.RENPY_VERSION }}
+          key: renpy-sdk-android-v3-${{ env.RENPY_VERSION }}
 
       - name: Download Ren'Py SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -60,12 +60,19 @@ jobs:
           cd ~/renpy-sdk/rapt
           ls
           test -f android.py
-          yes | python3 android.py installsdk
+          SDK="$HOME/renpy-sdk"
+          PY=$(find "$SDK/lib" -maxdepth 2 -type f \( -name python -o -name python3 \) -path "*py3-linux-x86_64*" | head -n1)
+          export PYTHONPATH="$SDK:$(find "$SDK/lib" -maxdepth 1 -type d | tr '\n' ':')"
+          echo "Using $PY"
+          yes | "$PY" android.py installsdk
 
       - name: Configure Android project
         run: |
-          cd "$HOME/renpy-sdk/rapt"
-          python3 android.py configure "$GITHUB_WORKSPACE" || true
+          SDK="$HOME/renpy-sdk"
+          PY=$(find "$SDK/lib" -maxdepth 2 -type f \( -name python -o -name python3 \) -path "*py3-linux-x86_64*" | head -n1)
+          export PYTHONPATH="$SDK:$(find "$SDK/lib" -maxdepth 1 -type d | tr '\n' ':')"
+          cd "$SDK/rapt"
+          yes "" | "$PY" android.py configure "$GITHUB_WORKSPACE" || true
 
       - name: Build APK
         env:
