@@ -49,7 +49,7 @@ jobs:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: |
-          ~/renpy-sdk/renpy.sh launcher distribute "$GITHUB_WORKSPACE" --destination "$GITHUB_WORKSPACE/builds"
+          "$HOME/renpy-sdk/renpy.sh" "$HOME/renpy-sdk/launcher" distribute "$GITHUB_WORKSPACE" --destination "$GITHUB_WORKSPACE/builds"
 
       - name: Upload build
         uses: actions/upload-artifact@v4
